@@ -52,6 +52,7 @@ func (p *payd) ProofCreate(ctx context.Context, args dpp.ProofCreateArgs, req en
 
 // PaymentTerms will send a socket request to a payd client for a payment request.
 // It will wait on a response before returnign the payment request.
+//nolint:dupl  // False positive duplicate code warning with `PaymentTermsSecure` below
 func (p *payd) PaymentTerms(ctx context.Context, args dpp.PaymentTermsArgs) (*dpp.PaymentTerms, error) {
 	msg := sockets.NewMessage(RoutePaymentTermsCreate, "", args.PaymentID)
 	msg.AppID = appID
@@ -87,6 +88,7 @@ func (p *payd) PaymentTerms(ctx context.Context, args dpp.PaymentTermsArgs) (*dp
 
 // PaymentTerms will send a socket request to a payd client for a payment request.
 // It will wait on a response before returnign the payment request.
+//nolint:dupl  // False positive duplicate code warning with `PaymentTerms` above
 func (p *payd) PaymentTermsSecure(ctx context.Context, args dpp.PaymentTermsArgs) (*envelope.JSONEnvelope, error) {
 	msg := sockets.NewMessage(RoutePaymentTermsCreate, "", args.PaymentID)
 	msg.AppID = appID
