@@ -48,10 +48,9 @@ func (p *paymentRequestProxy) PaymentRequest(ctx context.Context, args dpp.Payme
 	}
 
 	if p.transCfg.Mode == config.TransportModeHybrid {
-		u := url.URL{
-			Scheme: "http",
-			Host:   p.walletCfg.FQDN,
-			Path:   "/api/v1/payment/" + args.PaymentID,
+		u, err := url.Parse(p.walletCfg.FQDN + "/api/v1/payment/" + args.PaymentID)
+		if err != nil{
+			return nil, errors.Wrap(err, "invalid fqdn for dpp")
 		}
 		resp.PaymentURL = u.String()
 	}

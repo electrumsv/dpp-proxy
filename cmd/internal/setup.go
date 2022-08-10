@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoProm "github.com/labstack/echo-contrib/prometheus"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/spf13/viper"
@@ -86,6 +87,8 @@ func SetupEcho(cfg *config.Config, l log.Logger) *echo.Echo {
 		AllowOrigins: []string{"*"},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
 	}))
+	p := echoProm.NewPrometheus("dpp", nil)
+	p.Use(e)
 	e.HTTPErrorHandler = dppMiddleware.ErrorHandler(l)
 	return e
 }
