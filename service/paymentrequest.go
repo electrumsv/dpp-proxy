@@ -22,33 +22,13 @@ func NewPaymentTerms(prRdr dpp.PaymentTermsReader) *paymentTerms {
 }
 
 // PaymentTerms handles setting up a new PaymentTerms response and will validate that we have a paymentID.
-func (p *paymentTerms) PaymentTerms(ctx context.Context, args dpp.PaymentTermsArgs) (*dpp.PaymentTerms, error) {
+func (p *paymentTerms) PaymentTerms(ctx context.Context, args dpp.PaymentTermsArgs) (*envelope.JSONEnvelope, error) {
 	if err := validator.New().
 		Validate("paymentID", validator.NotEmpty(args.PaymentID)); err.Err() != nil {
 		return nil, err
 	}
 
 	pReq, err := p.prRdr.PaymentTerms(ctx, args)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get payment request for paymentID %s", args.PaymentID)
-	}
-	if pReq.Beneficiary != nil && pReq.Beneficiary.ExtendedData == nil {
-		pReq.Beneficiary.ExtendedData = map[string]interface{}{
-			"paymentReference": args.PaymentID,
-		}
-	}
-
-	return pReq, nil
-}
-
-// PaymentTerms handles setting up a new PaymentTerms response and will validate that we have a paymentID.
-func (p *paymentTerms) PaymentTermsSecure(ctx context.Context, args dpp.PaymentTermsArgs) (*envelope.JSONEnvelope, error) {
-	if err := validator.New().
-		Validate("paymentID", validator.NotEmpty(args.PaymentID)); err.Err() != nil {
-		return nil, err
-	}
-
-	pReq, err := p.prRdr.PaymentTermsSecure(ctx, args)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get payment request for paymentID %s", args.PaymentID)
 	}

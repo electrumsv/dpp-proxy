@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+	"github.com/libsv/go-bk/envelope"
 	"github.com/libsv/go-dpp"
 	dppMocks "github.com/libsv/go-dpp/mocks"
 	"github.com/stretchr/testify/assert"
@@ -17,17 +18,17 @@ import (
 
 func TestPaymentTermsHandler_BuildPaymentTerms(t *testing.T) {
 	tests := map[string]struct {
-		paymentTermsFunc func(context.Context, dpp.PaymentTermsArgs) (*dpp.PaymentTerms, error)
-		paymentID          string
-		expResponse        dpp.PaymentTerms
-		expStatusCode      int
-		expErr             error
+		paymentTermsFunc func(context.Context, dpp.PaymentTermsArgs) (*envelope.JSONEnvelope, error)
+		paymentID        string
+		expResponse      dpp.PaymentTerms
+		expStatusCode    int
+		expErr           error
 	}{
 		"successful post": {
-			paymentTermsFunc: func(ctx context.Context, args dpp.PaymentTermsArgs) (*dpp.PaymentTerms, error) {
-				return &dpp.PaymentTerms{
+			paymentTermsFunc: func(ctx context.Context, args dpp.PaymentTermsArgs) (*envelope.JSONEnvelope, error) {
+				return envelope.NewJSONEnvelope(&dpp.PaymentTerms{
 					Memo: fmt.Sprintf("payment %s", args.PaymentID),
-				}, nil
+				})
 			},
 			paymentID: "abc123",
 			expResponse: dpp.PaymentTerms{
@@ -36,7 +37,7 @@ func TestPaymentTermsHandler_BuildPaymentTerms(t *testing.T) {
 			expStatusCode: http.StatusOK,
 		},
 		"error is reported back": {
-			paymentTermsFunc: func(ctx context.Context, args dpp.PaymentTermsArgs) (*dpp.PaymentTerms, error) {
+			paymentTermsFunc: func(ctx context.Context, args dpp.PaymentTermsArgs) (*envelope.JSONEnvelope, error) {
 				return nil, errors.New("nah darn")
 			},
 			paymentID: "abc123",
@@ -74,10 +75,16 @@ func TestPaymentTermsHandler_BuildPaymentTerms(t *testing.T) {
 			defer response.Body.Close()
 			assert.Equal(t, test.expStatusCode, response.StatusCode)
 
-			var ack dpp.PaymentTerms
-			assert.NoError(t, json.NewDecoder(response.Body).Decode(&ack))
+			// These are created with an ephemeral public key that we do not keep track of and it
+			// is not our responsibility to test the correctness of the envelope in this limited
+			// scenario.
+			var env envelope.JSONEnvelope
+			assert.NoError(t, json.NewDecoder(response.Body).Decode(&env))
 
-			assert.Equal(t, test.expResponse, ack)
+			var actualTerms dpp.PaymentTerms
+			err = json.Unmarshal([]byte(env.Payload), &actualTerms)
+			assert.Nil(t, err)
+			assert.Equal(t, test.expResponse, actualTerms)
 		})
 	}
 }

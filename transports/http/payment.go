@@ -50,7 +50,7 @@ func (h *paymentHandler) createPayment(e echo.Context) error {
 		return errors.WithStack(err)
 	}
 	if resp.Error > 0 {
-		if &resp.Memo != nil {
+		if resp.Memo != "" {
 			return e.JSON(http.StatusUnprocessableEntity, resp.Memo)
 		}
 		return e.JSON(http.StatusUnprocessableEntity, "")

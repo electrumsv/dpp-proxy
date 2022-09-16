@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"net/url"
 
 	"github.com/bitcoin-sv/dpp-proxy/config"
 	"github.com/libsv/go-bk/envelope"
@@ -31,43 +29,13 @@ func NewPaymentTermsProxy(preqRdr dpp.PaymentTermsReader, transCfg *config.Trans
 	}
 }
 
-// PaymentTerms will call to the data layer to return a full payment request.
-func (p *paymentTermsProxy) PaymentTerms(ctx context.Context, args dpp.PaymentTermsArgs) (*dpp.PaymentTerms, error) {
+// PaymentTerms will call to the data layer to return a signed JSON envelope containing payment terms.
+func (p *paymentTermsProxy) PaymentTerms(ctx context.Context, args dpp.PaymentTermsArgs) (*envelope.JSONEnvelope, error) {
 	if err := validator.New().
 		Validate("paymentID", validator.NotEmpty(args.PaymentID)); err.Err() != nil {
 		return nil, err
 	}
 	resp, err := p.preqRdr.PaymentTerms(ctx, args)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read payment request for paymentID %s", args.PaymentID)
-	}
-
-	if len(resp.Modes.Hybrid["choiceID0"]["transactions"][0].Outputs.NativeOutputs) == 0 {
-		return nil, fmt.Errorf("no outputs received for paymentID %s", args.PaymentID)
-	}
-
-	if resp.Modes.Hybrid["choiceID0"]["transactions"][0].Policies.FeeRate == nil {
-		return nil, fmt.Errorf("no fees received for paymentID %s", args.PaymentID)
-	}
-
-	if p.transCfg.Mode == config.TransportModeHybrid {
-		u, err := url.Parse(p.walletCfg.FQDN + "/api/v1/payment/" + args.PaymentID)
-		if err != nil{
-			return nil, errors.Wrap(err, "invalid fqdn for dpp")
-		}
-		resp.PaymentURL = u.String()
-	}
-
-	return resp, nil
-}
-
-// PaymentTerms will call to the data layer to return a full payment request.
-func (p *paymentTermsProxy) PaymentTermsSecure(ctx context.Context, args dpp.PaymentTermsArgs) (*envelope.JSONEnvelope, error) {
-	if err := validator.New().
-		Validate("paymentID", validator.NotEmpty(args.PaymentID)); err.Err() != nil {
-		return nil, err
-	}
-	resp, err := p.preqRdr.PaymentTermsSecure(ctx, args)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to read payment request for paymentID %s", args.PaymentID)
 	}

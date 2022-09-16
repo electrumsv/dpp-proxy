@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,6 +23,7 @@ func TestPaymentHandler_CreatedPayment(t *testing.T) {
 		reqBody           dpp.Payment
 		paymentID         string
 		expResponse       dpp.PaymentACK
+		expTextResponse   string
 		expStatusCode     int
 		expErr            error
 	}{
@@ -45,13 +47,10 @@ func TestPaymentHandler_CreatedPayment(t *testing.T) {
 					Error: 1,
 				}, nil
 			},
-			paymentID: "abc123",
-			reqBody:   dpp.Payment{},
-			expResponse: dpp.PaymentACK{
-				Error: 1,
-				Memo:  "failed",
-			},
-			expStatusCode: http.StatusUnprocessableEntity,
+			paymentID:       "abc123",
+			reqBody:         dpp.Payment{},
+			expStatusCode:   http.StatusUnprocessableEntity,
+			expTextResponse: "\"failed\"\n",
 		},
 		"payment create service error is handled": {
 			paymentCreateFunc: func(ctx context.Context, args dpp.PaymentCreateArgs, req dpp.Payment) (*dpp.PaymentACK, error) {
@@ -97,10 +96,16 @@ func TestPaymentHandler_CreatedPayment(t *testing.T) {
 			defer response.Body.Close()
 			assert.Equal(t, test.expStatusCode, response.StatusCode)
 
-			var ack dpp.PaymentACK
-			assert.NoError(t, json.NewDecoder(response.Body).Decode(&ack))
-
-			assert.Equal(t, test.expResponse, ack)
+			if test.expTextResponse != "" {
+				var bodyData []byte
+				bodyData, err = io.ReadAll(response.Body)
+				assert.Nil(t, err)
+				assert.Equal(t, test.expTextResponse, string(bodyData))
+			} else {
+				var ack dpp.PaymentACK
+				assert.NoError(t, json.NewDecoder(response.Body).Decode(&ack))
+				assert.Equal(t, test.expResponse, ack)
+			}
 		})
 	}
 }

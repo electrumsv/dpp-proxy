@@ -18,10 +18,6 @@ const (
 	EnvCommit                      = "env.commit"
 	EnvBuildDate                   = "env.builddate"
 	EnvLogLevel                    = "log.level"
-	EnvPaydHost                    = "payd.host"
-	EnvPaydPort                    = "payd.port"
-	EnvPaydSecure                  = "payd.secure"
-	EnvPaydCertPath                = "payd.cert.path"
 	EnvPaydNoop                    = "payd.noop"
 	EnvSocketChannelTimeoutSeconds = "socket.channel.timeoutseconds"
 	EnvSocketMaxMessageBytes       = "socket.maxmessage.bytes"
@@ -33,7 +29,6 @@ const (
 	LogWarn  = "warn"
 
 	TransportModeHybrid = "hybrid"
-	TransportModeHTTP   = "http"
 	TransportModeSocket = "socket"
 )
 
@@ -85,15 +80,8 @@ type Server struct {
 	SwaggerHost    string
 }
 
-// PayD is used to setup connection to a payd instance.
-// In this case, we connect to only one merchant wallet
-// implementors may need to connect to more.
 type PayD struct {
-	Host            string
-	Port            string
-	Secure          bool
-	CertificatePath string
-	Noop            bool
+	Noop bool
 }
 
 // Socket contains config items for a socket server.

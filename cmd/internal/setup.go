@@ -1,15 +1,10 @@
 package internal
 
 import (
-	"crypto/tls"
 	"fmt"
 	"net/http"
-	"time"
 
 	dppProxy "github.com/bitcoin-sv/dpp-proxy"
-	"github.com/bitcoin-sv/dpp-proxy/data"
-	"github.com/bitcoin-sv/dpp-proxy/data/payd"
-	"github.com/bitcoin-sv/dpp-proxy/data/sockets"
 	"github.com/bitcoin-sv/dpp-proxy/docs"
 	"github.com/bitcoin-sv/dpp-proxy/log"
 	dppHandlers "github.com/bitcoin-sv/dpp-proxy/transports/http"
@@ -35,39 +30,9 @@ import (
 
 // Deps holds all the dependencies.
 type Deps struct {
-	PaymentService        dpp.PaymentService
+	PaymentService      dpp.PaymentService
 	PaymentTermsService dpp.PaymentTermsService
-	ProofsService         dpp.ProofsService
-}
-
-// SetupDeps will setup all required dependent services.
-func SetupDeps(cfg config.Config, l log.Logger) *Deps {
-	httpClient := &http.Client{Timeout: 5 * time.Second}
-	if !cfg.PayD.Secure { // for testing, don't validate server cert
-		// #nosec
-		httpClient.Transport = &http.Transport{
-			// #nosec
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-	}
-	// stores
-	paydStore := payd.NewPayD(cfg.PayD, data.NewClient(httpClient))
-
-	// services
-	paymentSvc := service.NewPayment(l, paydStore)
-	paymentReqSvc := service.NewPaymentTerms(paydStore)
-	if cfg.PayD.Noop {
-		noopStore := noop.NewNoOp(log.Noop{})
-		paymentSvc = service.NewPayment(log.Noop{}, noopStore)
-		paymentReqSvc = service.NewPaymentTerms(noopStore)
-	}
-	proofService := service.NewProof(paydStore)
-
-	return &Deps{
-		PaymentService:        paymentSvc,
-		PaymentTermsService:   paymentReqSvc,
-		ProofsService:         proofService,
-	}
+	ProofsService       dpp.ProofsService
 }
 
 // SetupEcho will set up and return an echo server.
@@ -99,15 +64,6 @@ func SetupSwagger(cfg config.Server, e *echo.Echo) {
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 }
 
-// SetupHTTPEndpoints will register the http endpoints.
-func SetupHTTPEndpoints(deps *Deps, e *echo.Echo) {
-	g := e.Group("/")
-	// handlers
-	dppHandlers.NewPaymentHandler(deps.PaymentService).RegisterRoutes(g)
-	dppHandlers.NewPaymentTermsHandler(deps.PaymentTermsService).RegisterRoutes(g)
-	dppHandlers.NewProofs(deps.ProofsService).RegisterRoutes(g)
-}
-
 // SetupSockets will setup handlers and socket server.
 func SetupSockets(cfg config.Socket, e *echo.Echo) *server.SocketServer {
 	g := e.Group("/")
@@ -121,7 +77,7 @@ func SetupSockets(cfg config.Socket, e *echo.Echo) *server.SocketServer {
 
 	dppSoc.NewPaymentTerms().Register(s)
 	dppSoc.NewPayment().Register(s)
-	dppHandlers.NewProofs(service.NewProof(sockets.NewPayd(s))).RegisterRoutes(g)
+	dppHandlers.NewProofs(service.NewProof(socData.NewPaymentStore(s))).RegisterRoutes(g)
 
 	// this is our websocket endpoint, clients will hit this with the channelID they wish to connect to
 	e.GET("/ws/:channelID", wsHandler(s))
@@ -137,7 +93,7 @@ func SetupHybrid(cfg config.Config, l log.Logger, e *echo.Echo) *server.SocketSe
 	// add middleware, with panic going first
 	s.WithMiddleware(smw.PanicHandler, smw.Timeout(smw.NewTimeoutConfig()), smw.Metrics())
 
-	paymentStore := socData.NewPayd(s)
+	paymentStore := socData.NewPaymentStore(s)
 	paymentSvc := service.NewPayment(l, paymentStore)
 	if cfg.PayD.Noop {
 		noopStore := noop.NewNoOp(log.Noop{})
