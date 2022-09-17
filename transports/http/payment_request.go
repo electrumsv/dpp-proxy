@@ -38,7 +38,7 @@ func (h *PaymentTermsHandler) RegisterRoutes(g *echo.Group) {
 // @Failure 404 {object} server.ClientError "returned if the paymentID has not been found"
 // @Failure 400 {object} server.ClientError "returned if the user input is invalid, usually an issue with the paymentID"
 // @Failure 500 {string} string "returned if there is an unexpected internal error"
-// @Router /api/v1/payment/sec/{paymentID} [GET].
+// @Router /api/v1/payment/{paymentID} [GET].
 func (h *PaymentTermsHandler) buildPaymentTerms(e echo.Context) error {
 	var args dpp.PaymentTermsArgs
 	if err := e.Bind(&args); err != nil {
