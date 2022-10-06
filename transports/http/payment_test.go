@@ -58,8 +58,8 @@ func TestPaymentHandler_CreatedPayment(t *testing.T) {
 			},
 			paymentID:     "abc123",
 			reqBody:       dpp.Payment{},
-			expStatusCode: http.StatusInternalServerError,
-			expErr:        errors.New("ohnonono"),
+			expStatusCode: http.StatusBadRequest,
+			expTextResponse: "\"ohnonono\"\n",
 		},
 	}
 

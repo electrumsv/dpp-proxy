@@ -47,7 +47,7 @@ func (h *paymentHandler) createPayment(e echo.Context) error {
 	}
 	resp, err := h.svc.PaymentCreate(e.Request().Context(), args, req)
 	if err != nil {
-		return errors.WithStack(err)
+		return e.JSON(http.StatusBadRequest, err.Error())
 	}
 	if resp.Error > 0 {
 		if resp.Memo != "" {
