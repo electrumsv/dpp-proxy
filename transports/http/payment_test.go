@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
+	"github.com/bitcoin-sv/dpp-proxy/log"
+	"github.com/bitcoin-sv/dpp-proxy/transports/client_errors"
+	"github.com/bitcoin-sv/dpp-proxy/transports/http/middleware"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -29,23 +30,16 @@ func TestPaymentHandler_CreatedPayment(t *testing.T) {
 	}{
 		"successful post": {
 			paymentCreateFunc: func(ctx context.Context, args dpp.PaymentCreateArgs, req dpp.Payment) (*dpp.PaymentACK, error) {
-				return &dpp.PaymentACK{
-					Memo: fmt.Sprintf("payment %s", args.PaymentID),
-				}, nil
+				return &dpp.PaymentACK{}, nil
 			},
 			paymentID: "abc123",
 			reqBody:   dpp.Payment{},
-			expResponse: dpp.PaymentACK{
-				Memo: "payment abc123",
-			},
+			expResponse: dpp.PaymentACK{},
 			expStatusCode: http.StatusCreated,
 		},
 		"error response returns 422": {
 			paymentCreateFunc: func(ctx context.Context, args dpp.PaymentCreateArgs, req dpp.Payment) (*dpp.PaymentACK, error) {
-				return &dpp.PaymentACK{
-					Memo:  "failed",
-					Error: 1,
-				}, nil
+				return nil, client_errors.NewErrUnprocessable("422", "failed")
 			},
 			paymentID:       "abc123",
 			reqBody:         dpp.Payment{},
@@ -54,7 +48,7 @@ func TestPaymentHandler_CreatedPayment(t *testing.T) {
 		},
 		"payment create service error is handled": {
 			paymentCreateFunc: func(ctx context.Context, args dpp.PaymentCreateArgs, req dpp.Payment) (*dpp.PaymentACK, error) {
-				return nil, errors.New("ohnonono")
+				return nil, client_errors.NewErrBadRequest("400", "ohnonono")
 			},
 			paymentID:     "abc123",
 			reqBody:       dpp.Payment{},
@@ -86,6 +80,8 @@ func TestPaymentHandler_CreatedPayment(t *testing.T) {
 			ctx.SetParamValues(test.paymentID)
 
 			err = h.createPayment(ctx)
+			middleware.ErrorHandler(log.Noop{})(err, ctx)
+
 			if test.expErr != nil {
 				assert.Error(t, err)
 				assert.EqualError(t, test.expErr, err.Error())

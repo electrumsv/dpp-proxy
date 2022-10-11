@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/libsv/go-bk/envelope"
 	"github.com/pkg/errors"
-	"github.com/theflyingcodr/lathos/errs"
+	"github.com/bitcoin-sv/dpp-proxy/transports/client_errors"
 	"github.com/theflyingcodr/sockets"
 
 	"github.com/libsv/go-dpp"
@@ -28,6 +28,7 @@ const (
 	appID = "dpp"
 )
 
+// PaymentStore returns PaymentTerms and routes the Payment to the payee wallet.
 type PaymentStore struct {
 	s sockets.ServerChannelBroadcaster
 }
@@ -63,7 +64,7 @@ func (p *PaymentStore) PaymentTerms(ctx context.Context, args dpp.PaymentTermsAr
 	resp, err := p.s.BroadcastAwait(ctx, args.PaymentID, msg)
 	if err != nil {
 		if errors.Is(err, sockets.ErrChannelNotFound) {
-			return nil, errs.NewErrNotFound("N00001", "invoice not found")
+			return nil, client_errors.NewErrNotFound("404", "invoice not found")
 		}
 		return nil, errors.Wrap(err, "failed to broadcast message for payment terms (secure)")
 	}
@@ -77,7 +78,7 @@ func (p *PaymentStore) PaymentTerms(ctx context.Context, args dpp.PaymentTermsAr
 	case RoutePaymentTermsError:
 		var clientErr server.ClientError
 		if err := resp.Bind(&clientErr); err != nil {
-			return nil, errors.Wrap(err, "failed to bind error response")
+			return nil, errors.Wrap(err, "failed to bind error response from payee")
 		}
 		return nil, toLathosErr(clientErr)
 	}
@@ -103,13 +104,13 @@ func (p *PaymentStore) PaymentCreate(ctx context.Context, args dpp.PaymentCreate
 	case RoutePaymentACK:
 		var pr *dpp.PaymentACK
 		if err := resp.Bind(&pr); err != nil {
-			return nil, errors.Wrap(err, "failed to bind payment ack response")
+			return nil, errors.Wrap(err, "failed to bind payment ack response from payee")
 		}
 		return pr, nil
 	case RoutePaymentError:
 		var clientErr server.ClientError
 		if err := resp.Bind(&clientErr); err != nil {
-			return nil, errors.Wrap(err, "failed to bind error response")
+			return nil, errors.Wrap(err, "failed to bind error response from payee")
 		}
 		return nil, toLathosErr(clientErr)
 	}
@@ -119,9 +120,18 @@ func (p *PaymentStore) PaymentCreate(ctx context.Context, args dpp.PaymentCreate
 
 func toLathosErr(c server.ClientError) error {
 	switch c.Code {
+	case "400":
+		return client_errors.NewErrBadRequest(c.Code, c.Message)
+	case "401":
+		return client_errors.NewErrNotAuthorised(c.Code, c.Message)
+	case "403":
+		return client_errors.NewErrNotAuthenticated(c.Code, c.Message)
 	case "404", "N0001":
-		return errs.NewErrNotFound(c.Code, c.Message)
+		return client_errors.NewErrNotFound(c.Code, c.Message)
+	case "409":
+		return client_errors.NewErrDuplicate(c.Code, c.Message)
+	case "422":
+		return client_errors.NewErrUnprocessable(c.Code, c.Message)
 	}
-
-	return c
+	return client_errors.NewErrBadRequest(c.Code, c.Message)
 }

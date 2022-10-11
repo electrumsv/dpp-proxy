@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	dppProxy "github.com/bitcoin-sv/dpp-proxy"
 	"github.com/bitcoin-sv/dpp-proxy/docs"
 	"github.com/bitcoin-sv/dpp-proxy/log"
 	dppHandlers "github.com/bitcoin-sv/dpp-proxy/transports/http"
@@ -131,12 +130,7 @@ func wsHandler(svr *server.SocketServer) echo.HandlerFunc {
 
 		if c.QueryParam("internal") != "true" {
 			if !svr.HasChannel(chID) {
-				return c.JSON(http.StatusNotFound, dppProxy.ClientError{
-					ID:      "",
-					Code:    "404",
-					Message: fmt.Sprintf("Connection for invoice '%s' not found", chID),
-					Title:   "Not found",
-				})
+				return c.JSON(http.StatusNotFound, fmt.Sprintf("Connection for invoice '%s' not found", chID))
 			}
 		}
 

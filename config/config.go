@@ -80,6 +80,7 @@ type Server struct {
 	SwaggerHost    string
 }
 
+// PayD is for mock testing.
 type PayD struct {
 	Noop bool
 }
